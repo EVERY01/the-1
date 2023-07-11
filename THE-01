@@ -1,0 +1,55 @@
+$d_money = Db::name('repayList')->where(['id'=>['lt',$ghostArr['id']],'status'=>2,'type'=>1,'repay_id'=>$ghostArr['repay_id']])->sum('d_money');
+            $data['fee'] = $d_money; //获取总服务费
+        }
+
+        //丰付
+		if($credit_regist['keyname'] == 'Sud')
+		{
+		    //修改还款的时候要加上代付费用，5.26修改。
+            $data['money'] += $data['fee'];
+
+			//查询商户余额
+			$queryBalance = $outapiLogic->queryBalance($data);
+			$balance = $queryBalance['data']['content'];
+			if(($balance * 100  - $data['fee'] ) < $data['money'])
+			{
+				$tempMoney = bcadd($balance * 100 - $data['fee'], 0, 2);
+				if ($tempMoney > 0) {
+                    $data['money'] = $tempMoney;
+                }
+			}
+
+        }
+//        else if ($credit_regist['keyname'] == 'TTF') //执行统统付的还款操作
+//        {
+//            //先查询账户余额
+//            $orderInfo = RepayListModel::get($ghostArr['list_id']);
+//            $balance = DhQueryService::getInstance()->orderMoney($orderInfo,$credit_regist['keyname']);
+//            Log::writeLog('ttf_response',$balance,'余额');
+//
+//            //新增获取分润表达式
+//            $share_benefit_exp = AllPayService::getRepayExpression($ghostArr['user_id'],$credit['bank_id']);
+//            if (empty($share_benefit_exp['str'])) {
+//                $share_benefit_exp = '{}';
+//            }
+//
+//            $payMoney = bcdiv($ghostArr['money'],100,2) ?: 0;  //代付费外扣，分润内扣
+//            if (($balance -  AllPayService::$cost) < $payMoney) {   //余额小于代付费用
+//                $payMoney = ($balance -  AllPayService::$cost); //代付费用 = 余额
+//                $share_benefit_exp = '{}'; //不分润
+//            }
+//
+//            $ttf_user = Db::name('member_all_pay')->where('user_id',$ghostArr['user_id'])->find();    //查询统统付支付的用户
+//            $data = [
+//                'longitude' => $ghostArr['lon'],    //设备GPS经度
+//                'latitude' => $ghostArr['lat'], //设备GPS维度
+//                'order_no' => $ghostArr['order_no'], //订单号
+//                'order_amount' => $payMoney,
+//                'order_time' => date ( 'YmdHis' ),  //订单时间
+//                'user_id' => $ttf_user['uid'],  //用户id
+//                //信用卡信息
+//                'bind_card_id' => $credit['all_pay_bind_card_id'],  //绑卡id
+//                'pay_password' => $ttf_user['pay_password'], //支付密码
+//                'need_notify' => 1,  //是否需要异步通知
+//                'notify_url' =>  $site.'/api/Drepay/qtnotifyUrl',//商户后台通知URL
+//                'goods_name' =>   'Preety Toy',    //商品名称
